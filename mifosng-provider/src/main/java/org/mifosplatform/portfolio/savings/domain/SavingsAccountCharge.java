@@ -628,6 +628,10 @@ public class SavingsAccountCharge extends AbstractPersistable<Long> {
         return ChargeTimeType.fromInt(this.chargeTime).isMonthlyFee();
     }
 
+    public boolean isWeeklyFee() {
+        return ChargeTimeType.fromInt(this.chargeTime).isWeeklyFee();
+    }
+
     public boolean hasCurrencyCodeOf(final String matchingCurrencyCode) {
         if (this.currencyCode() == null || matchingCurrencyCode == null) { return false; }
         return this.currencyCode().equalsIgnoreCase(matchingCurrencyCode);
@@ -687,16 +691,20 @@ public class SavingsAccountCharge extends AbstractPersistable<Long> {
     }
 
     public void updateToNextDueDate() {
+    	
         if (isAnnualFee() || isMonthlyFee()) {
-            LocalDate nextDueLocalDate = new LocalDate(dueDate);
-            int maxDayOfMonth = nextDueLocalDate.dayOfMonth().withMaximumValue().getDayOfMonth();
-            int newDayOfMonth = (this.feeOnDay.intValue() < maxDayOfMonth) ? this.feeOnDay.intValue() : maxDayOfMonth;
-            nextDueLocalDate = nextDueLocalDate.withDayOfMonth(newDayOfMonth);
-
+        	LocalDate nextDueLocalDate = null;
+            LocalDate currentDueLocalDate = new LocalDate(dueDate);
+            
             if (isAnnualFee()) {
-                nextDueLocalDate = nextDueLocalDate.withMonthOfYear(this.feeOnMonth).plusYears(1);
+                nextDueLocalDate = currentDueLocalDate.withMonthOfYear(this.feeOnMonth).plusYears(1);
             } else if (isMonthlyFee()) {
-                nextDueLocalDate = nextDueLocalDate.plusMonths(this.feeInterval);
+                nextDueLocalDate = currentDueLocalDate.plusMonths(this.feeInterval);
+                int maxDayOfMonth = nextDueLocalDate.dayOfMonth().withMaximumValue().getDayOfMonth();
+                int newDayOfMonth = (this.feeOnDay.intValue() < maxDayOfMonth) ? this.feeOnDay.intValue() : maxDayOfMonth;
+                nextDueLocalDate = nextDueLocalDate.withDayOfMonth(newDayOfMonth);
+            } else if (isWeeklyFee()){
+            	nextDueLocalDate = currentDueLocalDate.plusDays(7 * this.feeInterval); 
             }
 
             this.dueDate = nextDueLocalDate.toDate();

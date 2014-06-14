@@ -106,9 +106,10 @@ public class Charge extends AbstractPersistable<Long> {
         final BigDecimal minCap = command.bigDecimalValueOfParameterNamed("minCap");
         final BigDecimal maxCap = command.bigDecimalValueOfParameterNamed("maxCap");
         final Integer feeFrequency = command.integerValueOfParameterNamed("feeFrequency");
+        final Integer feeOnDayOfWeek = command.integerValueOfParameterNamed("feeOnDayOfWeek");
 
         return new Charge(name, amount, currencyCode, chargeAppliesTo, chargeTimeType, chargeCalculationType, penalty, active, paymentMode,
-                feeOnMonthDay, feeInterval, minCap, maxCap, feeFrequency);
+                feeOnMonthDay, feeInterval, minCap, maxCap, feeFrequency, feeOnDayOfWeek);
     }
 
     protected Charge() {
@@ -118,7 +119,7 @@ public class Charge extends AbstractPersistable<Long> {
     private Charge(final String name, final BigDecimal amount, final String currencyCode, final ChargeAppliesTo chargeAppliesTo,
             final ChargeTimeType chargeTime, final ChargeCalculationType chargeCalculationType, final boolean penalty,
             final boolean active, final ChargePaymentMode paymentMode, final MonthDay feeOnMonthDay, final Integer feeInterval,
-            final BigDecimal minCap, final BigDecimal maxCap, final Integer feeFrequency) {
+            final BigDecimal minCap, final BigDecimal maxCap, final Integer feeFrequency, final Integer feeOnDayOfWeek) {
         this.name = name;
         this.amount = amount;
         this.currencyCode = currencyCode;
@@ -135,7 +136,10 @@ public class Charge extends AbstractPersistable<Long> {
         if (isMonthlyFee() || isAnnualFee()) {
             this.feeOnMonth = feeOnMonthDay.getMonthOfYear();
             this.feeOnDay = feeOnMonthDay.getDayOfMonth();
+        }else if (isWeeklyFee()){
+        	this.feeOnDay = feeOnDayOfWeek;
         }
+        
         this.feeInterval = feeInterval;
         this.feeFrequency = feeFrequency;
 
@@ -307,6 +311,9 @@ public class Charge extends AbstractPersistable<Long> {
 
                     final Integer feeInterval = command.integerValueOfParameterNamed("feeInterval");
                     baseDataValidator.reset().parameter("feeInterval").value(feeInterval).notNull().inMinMaxRange(1, 12);
+                }else if(isWeeklyFee()){
+                	final Integer feeOnDayOfWeek = command.integerValueOfParameterNamed("feeOnDayOfWeek");
+                	baseDataValidator.reset().parameter("feeOnDayOfWeek").value(feeOnDayOfWeek).notNull().inMinMaxRange(0, 6);
                 }
             } else if (isLoanCharge()) {
                 if (!isAllowedLoanChargeTime()) {
@@ -380,6 +387,14 @@ public class Charge extends AbstractPersistable<Long> {
             }
         }
 
+        
+        if (command.hasParameter("feeOnDayOfWeek")){
+            final Integer feeOnDayOfWeekNewValue = command.integerValueOfParameterNamed("feeOnDayOfWeek");
+            actualChanges.put("feeInterval", feeOnDayOfWeekNewValue);
+            actualChanges.put("locale", localeAsInput);
+            this.feeOnDay = feeOnDayOfWeekNewValue;
+        }
+        
         final String feeInterval = "feeInterval";
         if (command.isChangeInIntegerParameterNamed(feeInterval, this.feeInterval)) {
             final Integer newValue = command.integerValueOfParameterNamed(feeInterval);
@@ -461,7 +476,7 @@ public class Charge extends AbstractPersistable<Long> {
         final CurrencyData currency = new CurrencyData(this.currencyCode, null, 0, 0, null, null);
         return ChargeData.instance(getId(), this.name, this.amount, currency, chargeTimeType, chargeAppliesTo, chargeCalculationType,
                 chargePaymentmode, getFeeOnMonthDay(), this.feeInterval, this.penalty, this.active, this.minCap, this.maxCap,
-                feeFrequencyType);
+                feeFrequencyType, this.feeOnDay);
     }
 
     public Integer getChargePaymentMode() {
@@ -476,6 +491,11 @@ public class Charge extends AbstractPersistable<Long> {
         return ChargeTimeType.fromInt(this.chargeTime).isAnnualFee();
     }
 
+    public boolean isWeeklyFee() {
+        return ChargeTimeType.fromInt(this.chargeTime).isWeeklyFee();
+    }
+   
+    
     public boolean isOverdueInstallment() {
         return ChargeTimeType.fromInt(this.chargeTime).isOverdueInstallment();
     }

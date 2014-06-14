@@ -41,7 +41,7 @@ public final class ChargeDefinitionCommandFromApiJsonDeserializer {
      */
     private final Set<String> supportedParameters = new HashSet<String>(Arrays.asList("name", "amount", "locale", "currencyCode",
             "currencyOptions", "chargeAppliesTo", "chargeTimeType", "chargeCalculationType", "chargeCalculationTypeOptions", "penalty",
-            "active", "chargePaymentMode", "feeOnMonthDay", "feeInterval", "monthDayFormat", "minCap", "maxCap", "feeFrequency"));
+            "active", "chargePaymentMode", "feeOnMonthDay", "feeInterval", "monthDayFormat", "minCap", "maxCap", "feeFrequency", "feeOnDayOfWeek"));
 
     private final FromJsonHelper fromApiJsonHelper;
 
@@ -113,6 +113,16 @@ public final class ChargeDefinitionCommandFromApiJsonDeserializer {
             }
 
             final ChargeTimeType ctt = ChargeTimeType.fromInt(chargeTimeType);
+
+            if (ctt.isWeeklyFee()) {
+
+            	final String monthDay = this.fromApiJsonHelper.extractStringNamed("feeOnMonthDay", element);
+            	baseDataValidator.reset().parameter("feeOnMonthDay").value(monthDay).mustBeBlankWhenParameterProvidedIs("chargeTimeType", chargeTimeType);
+
+            	final Integer feeOnDayOfWeek = this.fromApiJsonHelper.extractIntegerSansLocaleNamed("feeOnDayOfWeek", element);
+                baseDataValidator.reset().parameter("feeOnDayOfWeek").value(feeOnDayOfWeek).notNull().inMinMaxRange(1, 7);
+            }
+            
             if (ctt.isMonthlyFee()) {
                 final MonthDay monthDay = this.fromApiJsonHelper.extractMonthDayNamed("feeOnMonthDay", element);
                 baseDataValidator.reset().parameter("feeOnMonthDay").value(monthDay).notNull();
@@ -216,12 +226,36 @@ public final class ChargeDefinitionCommandFromApiJsonDeserializer {
 
             baseDataValidator.reset().parameter("chargeTimeType").value(chargeTimeType).notNull()
                     .isOneOfTheseValues(allValidValues.toArray(new Object[allValidValues.size()]));
+            
+            final ChargeTimeType ctt = ChargeTimeType.fromInt(chargeTimeType);
+            
+            if(ctt.isWeeklyFee()){
+                if (this.fromApiJsonHelper.parameterExists("feeOnMonthDay", element)) {
+                	final String monthDay = this.fromApiJsonHelper.extractStringNamed("feeOnMonthDay", element);
+                	baseDataValidator.reset().parameter("feeOnMonthDay").value(monthDay).mustBeBlankWhenParameterProvidedIs("chargeTimeType", chargeTimeType);
+                }
+            }
+            
+            if(ctt.isMonthlyFee() || ctt.isAnnualFee()){
+                if (this.fromApiJsonHelper.parameterExists("feeOnDayOfWeek", element)) {
+                	final String feeOnDayOfWeek = this.fromApiJsonHelper.extractStringNamed("feeOnDayOfWeek", element);
+                	baseDataValidator.reset().parameter("feeOnDayOfWeek").value(feeOnDayOfWeek).mustBeBlankWhenParameterProvidedIs("chargeTimeType", chargeTimeType);
+                }
+            }
+            
         }
+
 
         if (this.fromApiJsonHelper.parameterExists("feeOnMonthDay", element)) {
             final MonthDay monthDay = this.fromApiJsonHelper.extractMonthDayNamed("feeOnMonthDay", element);
             baseDataValidator.reset().parameter("feeOnMonthDay").value(monthDay).notNull();
         }
+        
+        if (this.fromApiJsonHelper.parameterExists("feeOnDayOfWeek", element)) {
+            final Integer feeOnDayOfWeek = this.fromApiJsonHelper.extractIntegerSansLocaleNamed("feeOnDayOfWeek", element);
+            baseDataValidator.reset().parameter("feeOnDayOfWeek").value(feeOnDayOfWeek).notNull().inMinMaxRange(0, 6);
+        }
+
 
         if (this.fromApiJsonHelper.parameterExists("feeInterval", element)) {
             final Integer feeInterval = this.fromApiJsonHelper.extractIntegerNamed("feeInterval", element, Locale.getDefault());

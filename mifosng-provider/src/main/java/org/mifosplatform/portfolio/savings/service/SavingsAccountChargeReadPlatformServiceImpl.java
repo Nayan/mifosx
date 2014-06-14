@@ -18,6 +18,7 @@ import org.mifosplatform.infrastructure.core.domain.JdbcSupport;
 import org.mifosplatform.infrastructure.core.service.RoutingDataSource;
 import org.mifosplatform.infrastructure.security.service.PlatformSecurityContext;
 import org.mifosplatform.organisation.monetary.data.CurrencyData;
+import org.mifosplatform.portfolio.calendar.service.CalendarDropdownReadPlatformService;
 import org.mifosplatform.portfolio.charge.data.ChargeData;
 import org.mifosplatform.portfolio.charge.domain.ChargeTimeType;
 import org.mifosplatform.portfolio.charge.exception.SavingsAccountChargeNotFoundException;
@@ -40,6 +41,7 @@ public class SavingsAccountChargeReadPlatformServiceImpl implements SavingsAccou
     private final PlatformSecurityContext context;
     private final ChargeDropdownReadPlatformService chargeDropdownReadPlatformService;
     private final DropdownReadPlatformService dropdownReadPlatformService;
+    private final CalendarDropdownReadPlatformService calendarDropdownReadPlatformService;
 
     // mappers
     private final SavingsAccountChargeDueMapper chargeDueMapper;
@@ -47,12 +49,14 @@ public class SavingsAccountChargeReadPlatformServiceImpl implements SavingsAccou
     @Autowired
     public SavingsAccountChargeReadPlatformServiceImpl(final PlatformSecurityContext context,
             final ChargeDropdownReadPlatformService chargeDropdownReadPlatformService, final RoutingDataSource dataSource,
-            final DropdownReadPlatformService dropdownReadPlatformService) {
+            final DropdownReadPlatformService dropdownReadPlatformService, 
+            final CalendarDropdownReadPlatformService calendarDropdownReadPlatformService) {
         this.context = context;
         this.chargeDropdownReadPlatformService = chargeDropdownReadPlatformService;
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.chargeDueMapper = new SavingsAccountChargeDueMapper();
         this.dropdownReadPlatformService = dropdownReadPlatformService;
+        this.calendarDropdownReadPlatformService = calendarDropdownReadPlatformService;
     }
 
     private static final class SavingsAccountChargeMapper implements RowMapper<SavingsAccountChargeData> {
@@ -143,11 +147,12 @@ public class SavingsAccountChargeReadPlatformServiceImpl implements SavingsAccou
                 .retrieveSavingsCollectionTimeTypes();
 
         final List<EnumOptionData> feeFrequencyOptions = this.dropdownReadPlatformService.retrievePeriodFrequencyTypeOptions();
+        final List<EnumOptionData> feeOnDayOfWeekOptions = this.calendarDropdownReadPlatformService.retrieveCalendarWeekDaysTypeOptions();
 
         // TODO AA : revisit for merge conflict - Not sure method signature
         return ChargeData.template(null, allowedChargeCalculationTypeOptions, null, allowedChargeTimeOptions, null,
                 loansChargeCalculationTypeOptions, loansChargeTimeTypeOptions, savingsChargeCalculationTypeOptions,
-                savingsChargeTimeTypeOptions, feeFrequencyOptions);
+                savingsChargeTimeTypeOptions, feeFrequencyOptions, feeOnDayOfWeekOptions);
     }
 
     @Override

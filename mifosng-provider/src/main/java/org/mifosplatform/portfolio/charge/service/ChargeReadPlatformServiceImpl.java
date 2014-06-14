@@ -18,6 +18,7 @@ import org.mifosplatform.infrastructure.core.service.RoutingDataSource;
 import org.mifosplatform.infrastructure.security.service.PlatformSecurityContext;
 import org.mifosplatform.organisation.monetary.data.CurrencyData;
 import org.mifosplatform.organisation.monetary.service.CurrencyReadPlatformService;
+import org.mifosplatform.portfolio.calendar.service.CalendarDropdownReadPlatformService;
 import org.mifosplatform.portfolio.charge.data.ChargeData;
 import org.mifosplatform.portfolio.charge.domain.ChargeAppliesTo;
 import org.mifosplatform.portfolio.charge.exception.ChargeNotFoundException;
@@ -38,17 +39,20 @@ public class ChargeReadPlatformServiceImpl implements ChargeReadPlatformService 
     private final CurrencyReadPlatformService currencyReadPlatformService;
     private final ChargeDropdownReadPlatformService chargeDropdownReadPlatformService;
     private final DropdownReadPlatformService dropdownReadPlatformService;
+    private final CalendarDropdownReadPlatformService calendarDropdownReadPlatformService; 
 
     @Autowired
     public ChargeReadPlatformServiceImpl(final PlatformSecurityContext context,
             final CurrencyReadPlatformService currencyReadPlatformService,
             final ChargeDropdownReadPlatformService chargeDropdownReadPlatformService, final RoutingDataSource dataSource,
-            final DropdownReadPlatformService dropdownReadPlatformService) {
+            final DropdownReadPlatformService dropdownReadPlatformService, 
+            final CalendarDropdownReadPlatformService calendarDropdownReadPlatformService) {
         this.context = context;
         this.chargeDropdownReadPlatformService = chargeDropdownReadPlatformService;
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.currencyReadPlatformService = currencyReadPlatformService;
         this.dropdownReadPlatformService = dropdownReadPlatformService;
+        this.calendarDropdownReadPlatformService = calendarDropdownReadPlatformService; 
     }
 
     @Override
@@ -108,10 +112,11 @@ public class ChargeReadPlatformServiceImpl implements ChargeReadPlatformService 
         final List<EnumOptionData> savingsChargeTimeTypeOptions = this.chargeDropdownReadPlatformService
                 .retrieveSavingsCollectionTimeTypes();
         final List<EnumOptionData> feeFrequencyOptions = this.dropdownReadPlatformService.retrievePeriodFrequencyTypeOptions();
+        final List<EnumOptionData> feeOnDayOfWeekOptions = this.calendarDropdownReadPlatformService.retrieveCalendarWeekDaysTypeOptions();
 
         return ChargeData.template(currencyOptions, allowedChargeCalculationTypeOptions, allowedChargeAppliesToOptions,
                 allowedChargeTimeOptions, chargePaymentOptions, loansChargeCalculationTypeOptions, loansChargeTimeTypeOptions,
-                savingsChargeCalculationTypeOptions, savingsChargeTimeTypeOptions, feeFrequencyOptions);
+                savingsChargeCalculationTypeOptions, savingsChargeTimeTypeOptions, feeFrequencyOptions, feeOnDayOfWeekOptions);
     }
 
     @Override
@@ -241,14 +246,14 @@ public class ChargeReadPlatformServiceImpl implements ChargeReadPlatformService 
             MonthDay feeOnMonthDay = null;
             final Integer feeOnMonth = JdbcSupport.getInteger(rs, "feeOnMonth");
             final Integer feeOnDay = JdbcSupport.getInteger(rs, "feeOnDay");
-            if (feeOnDay != null) {
+            if (feeOnDay != null && feeOnMonth != null) {
                 feeOnMonthDay = new MonthDay(feeOnMonth, feeOnDay);
             }
             final BigDecimal minCap = rs.getBigDecimal("minCap");
             final BigDecimal maxCap = rs.getBigDecimal("maxCap");
 
             return ChargeData.instance(id, name, amount, currency, chargeTimeType, chargeAppliesToType, chargeCalculationType,
-                    chargePaymentMode, feeOnMonthDay, feeInterval, penalty, active, minCap, maxCap, feeFrequencyType);
+                    chargePaymentMode, feeOnMonthDay, feeInterval, penalty, active, minCap, maxCap, feeFrequencyType, feeOnDay);
         }
     }
 
